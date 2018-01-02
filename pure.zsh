@@ -23,6 +23,13 @@
 # \e[K  => clears everything after the cursor on the current line
 # \e[2K => clear everything on the current line
 
+# Customize the indicator for Vi mode
+MODE_INDICATOR="%F{yellow}❮❮❮%F{normal}"
+
+# Re-render the prompt when the terminal is resized
+TRAPWINCH() {
+	prompt_pure_preprompt_render
+}
 
 # turns seconds into human readable time
 # 165392 => 1d 21h 56m 32s
@@ -102,7 +109,7 @@ prompt_pure_preprompt_render() {
 
 	# Set color for git branch/dirty status, change color if dirty checking has
 	# been delayed.
-	local git_color=242
+	local git_color=8
 	[[ -n ${prompt_pure_git_last_dirty_check_timestamp+x} ]] && git_color=red
 
 	# Initialize the preprompt array.
@@ -126,6 +133,17 @@ prompt_pure_preprompt_render() {
 	# Execution time.
 	[[ -n $prompt_pure_cmd_exec_time ]] && preprompt_parts+=('%F{yellow}${prompt_pure_cmd_exec_time}%f')
 
+	# Create the right prompt
+	local right_prompt="%F{green}${prompt_pure_node_version}%f"
+
+	# Create the correct amount of whitespace
+	integer preprompt_length rightprompt_length whitespace_length
+	local spacer
+	prompt_pure_string_length_to_var "${preprompt_parts}" "preprompt_length"
+	prompt_pure_string_length_to_var "${right_prompt}" "rightprompt_length"
+	whitespace_length=$(($COLUMNS - $preprompt_length - $rightprompt_length))
+	spacer=$(printf ' %.0s' {1..$whitespace_length})
+
 	local cleaned_ps1=$PROMPT
 	local -H MATCH MBEGIN MEND
 	if [[ $PROMPT = *$prompt_newline* ]]; then
@@ -142,6 +160,8 @@ prompt_pure_preprompt_render() {
 	ps1=(
 		$prompt_newline           # Initial newline, for spaciousness.
 		${(j. .)preprompt_parts}  # Join parts, space separated.
+		$spacer                   # Inject enough whitespace to space the left- and right-hand side of the prompt
+		$right_prompt             # Add the right-hand side of the preprompt
 		$prompt_newline           # Separate preprompt and prompt.
 		$cleaned_ps1
 	)
@@ -287,6 +307,7 @@ prompt_pure_async_tasks() {
 		unset prompt_pure_git_last_dirty_check_timestamp
 		unset prompt_pure_git_arrows
 		unset prompt_pure_git_fetch_pattern
+		unset prompt_pure_node_version
 		prompt_pure_vcs_info[branch]=
 		prompt_pure_vcs_info[top]=
 	fi
@@ -325,6 +346,18 @@ prompt_pure_async_refresh() {
 		# check check if there is anything to pull
 		async_job "prompt_pure" prompt_pure_async_git_dirty ${PURE_GIT_UNTRACKED_DIRTY:-1} $PWD
 	fi
+
+	# fetch the node version asynchronously
+	async_job "prompt_pure" prompt_pure_async_node_version $PWD
+}
+
+prompt_pure_async_node_version() {
+	local dir=$1
+
+	builtin cd -q $dir
+	command node --version
+
+	return $?
 }
 
 prompt_pure_check_git_arrows() {
@@ -415,6 +448,12 @@ prompt_pure_async_callback() {
 				fi
 			fi
 			;;
+		prompt_pure_async_node_version)
+			if [[ -n $output ]]; then
+				prompt_pure_node_version="⬢ ${output}"
+				do_render=1
+			fi
+			;;
 	esac
 
 	if (( next_pending )); then
@@ -456,13 +495,13 @@ prompt_pure_setup() {
 	add-zsh-hook preexec prompt_pure_preexec
 
 	# show username@host if logged in through SSH
-	[[ "$SSH_CONNECTION" != '' ]] && prompt_pure_username='%F{242}%n@%m%f'
+	[[ "$SSH_CONNECTION" != '' ]] && prompt_pure_username='%F{8}%n@%m%f'
 
 	# show username@host if root, with username in white
-	[[ $UID -eq 0 ]] && prompt_pure_username='%F{white}%n%f%F{242}@%m%f'
+	[[ $UID -eq 0 ]] && prompt_pure_username='%F{white}%n%f%F{8}@%m%f'
 
 	# if a virtualenv is activated, display it in grey
-	PROMPT='%(12V.%F{242}%12v%f .)'
+	PROMPT='%(12V.%F{8}%12v%f .)'
 
 	# prompt turns red if the previous command didn't exit with 0
 	PROMPT+='%(?.%F{magenta}.%F{red})${PURE_PROMPT_SYMBOL:-❯}%f '

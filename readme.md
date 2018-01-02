@@ -9,6 +9,13 @@
 
 Most prompts are cluttered, ugly and slow. I wanted something visually pleasing that stayed out of my way.
 
+### Differences from the base repo
+
+- Displays the current `node` version in the right-hand size of the preprompt. This should even work with tools that set the `node` version on a per-project basis, as long as that project is within a Git repository.
+- Uses a slightly different color for the Git information, to play better with my colorscheme of choice, Nova.
+
+Note: this project is frequently rebased to grab updates from the base and make the number of commits apart they are to a minimum.
+
 ### Why?
 
 - Comes with the perfect prompt character.
